@@ -1,0 +1,21 @@
+# Run RViZ
+rviz2
+
+# Plain robot state publisher
+ros2 launch articubot_one rsp.launch.py
+# Run this when "No TF to Base_link" in Rviz
+ros2 run joint_state_publisher_gui joint_state_publisher_gui
+
+# Start Lidar Topic
+ros2 run rplidar_ros rplidar_composition --ros-args -p serial_port:=/dev/ttyUSB0 -p frame_id:=laser_frame -p angle_compensate:=true -p scan_mode:=Standard
+
+ros2 run laser_cloud laser_cloud
+
+
+##ros2 launch articubot_one/launch/launch_sim.launch.py world:=./articubot_one/worlds/obstacles.world 
+
+
+##ros2 launch articubot_one tf_publisher.launch.py
+
+
+# Follow tutorial on custom ros package and make laser_cloud work
