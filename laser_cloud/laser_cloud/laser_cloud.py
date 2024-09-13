@@ -5,6 +5,9 @@ import sensor_msgs_py.point_cloud2 as pc2
 from std_msgs.msg import Header
 from tf2_ros.transform_listener import TransformListener
 from tf2_ros.buffer import Buffer
+import numpy as np
+from scipy.spatial.transform import Rotation as R
+import array
 
 class LaserProjection:
     """
@@ -217,38 +220,13 @@ class LaserProjection:
         return cloud_out
 
     def transformLaserScan2PointClout(self, cloud_out):
+        """
+        Fields are Default [x,y,z,intensity,index] all 4 byte floats
+
+        https://github.com/ros-perception/laser_geometry/blob/kinetic-devel/src/laser_geometry.cpp#L573
+        """
         pass
-        for i in range((cloud_out.points)):
-            pass
-            # get the index for this point
-            pt_index = cloud_out.channels[index_channel_idx].values[i];
 
-    #   // Instead, assume constant motion during the laser-scan, and use slerp to compute intermediate transforms
-    #   tfScalar ratio = pt_index / ( (double) scan_in.ranges.size() - 1.0) ;
-
-    #   //! \todo Make a function that performs both the slerp and linear interpolation needed to interpolate a Full Transform (Quaternion + Vector)
-
-    #   //Interpolate translation
-    #   tf::Vector3 v (0, 0, 0);
-    #   v.setInterpolate3(start_transform.getOrigin(), end_transform.getOrigin(), ratio) ;
-    #   cur_transform.setOrigin(v) ;
-
-    #   //Interpolate rotation
-    #   tf::Quaternion q1, q2 ;
-    #   start_transform.getBasis().getRotation(q1) ;
-    #   end_transform.getBasis().getRotation(q2) ;
-
-    #   // Compute the slerp-ed rotation
-    #   cur_transform.setRotation( slerp( q1, q2 , ratio) ) ;
-
-    #   // Apply the transform to the current point
-    #   tf::Vector3 pointIn(cloud_out.points[i].x, cloud_out.points[i].y, cloud_out.points[i].z) ;
-    #   tf::Vector3 pointOut = cur_transform * pointIn ;
-
-    #   // Copy transformed point into cloud
-    #   cloud_out.points[i].x  = pointOut.x();
-    #   cloud_out.points[i].y  = pointOut.y();
-    #   cloud_out.points[i].z  = pointOut.z();
 
 
 class LaserSubscriber(Node):
@@ -268,39 +246,48 @@ class LaserSubscriber(Node):
         """Publish accumulated point cloud"""
         self.pub.publish(self.cloud_out)
         self.cloud_out = PointCloud2()
+        self.cloud_out.header.frame_id = self.target_frame
 
     def scan_cb(self, msg):
-        # convert the message of type LaserScan to a PointCloud2
-        cloud_out = self.lp.projectLaser(msg)
-        # Set the output cloud accordingly
-        # cloud_out = PointCloud2()
-        cloud_out.header.frame_id = self.target_frame
+        """
+        Fields are Default [x,y,z,intensity,index] all 4 bytes for 20 bytes a point
+        """
+        try:
 
-        # Get the latest transform to rotate the laserscan into and add to the accumulating point cloud
-        trans = self._tf_buffer.lookup_transform("laser_frame","base_frame", 0)
-        # now we can do something with the PointCloud2 for example:
-        # publish it
-        # self.pub.publish(pc2_msg)
-        
-        # convert it to a generator of the individual points
-        # point_generator = pc2.read_points(pc2_msg)
-        # we can access a generator in a loop
-        # sum = 0.0
-        # num = 0
-        # for point in point_generator:
-        #     if not math.isnan(point[2]):
-        #         sum += point[2]
-        #         num += 1
-        # we can calculate the average z value for example
-        # print(str(sum/num))
+            # convert the message of type LaserScan to a PointCloud2
+            cloud_row = self.lp.projectLaser(msg)
 
-        # or a list of the individual points which is less efficient
-        # point_list = pc2.read_points_list(pc2_msg)
+            # Get the latest transform to rotate the laserscan into and add to the accumulating point cloud
+            trans = self._tf_buffer.lookup_transform("laser_frame","base_link", rclpy.time.Time(seconds=0,nanoseconds=0))
 
-        # we can access the point list with an index, each element is a namedtuple
-        # we can access the elements by name, the generator does not yield namedtuples!
-        # if we convert it to a list and back this possibility is lost
-        # print(point_list[len(point_list)/2].x)
+            rot = R.from_quat([trans.transform.rotation.x,trans.transform.rotation.y,trans.transform.rotation.z,trans.transform.rotation.w])
+            
+            # Translation for moving robots
+            # trans.transform.translation
+
+            # xyz_arr has 5 fields for [x,y,z,intesity,index]
+            xyz_arr = np.empty((cloud_row.width,3))
+            bits = cloud_row.data.tobytes()
+            xyz_arr[:,0] = np.frombuffer(bits, np.float32)[0::5]
+            xyz_arr[:,1] = np.frombuffer(bits, np.float32)[1::5]
+            xyz_arr[:,2] = np.frombuffer(bits, np.float32)[2::5]
+            
+            rotated = rot.apply(xyz_arr)
+
+            out_arr = np.empty((cloud_row.width, 5))
+            out_arr[:,0] = np.frombuffer(rotated, np.float32)[0,:]
+            out_arr[:,1] = np.frombuffer(rotated, np.float32)[1,:]
+            out_arr[:,2] = np.frombuffer(rotated, np.float32)[2,:]
+            out_arr[:,3] = np.frombuffer(bits, np.float32)[3::5]
+            out_arr[:,4] = np.frombuffer(bits, np.int32)[4::5]
+
+            rotated_cloud = array.array('B', out_arr.tobytes())
+
+            self.cloud_out.height += 1
+            self.cloud_out.data.append(rotated_cloud)
+            
+        except Exception as ex:
+            self.logger.error(ex)
 
 def main(args=None):
     
