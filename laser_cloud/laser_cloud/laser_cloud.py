@@ -1,4 +1,5 @@
 import rclpy
+import asyncio
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, LaserScan
 import sensor_msgs_py.point_cloud2 as pc2
@@ -233,7 +234,8 @@ class LaserSubscriber(Node):
 
     def __init__(self):
         super().__init__("LaserSub")
-        self.target_frame = "base_frame"
+        self.lock = asyncio.Lock()
+        self.target_frame = "base_link"
         self.lp = LaserProjection()  
         self.pub = self.create_publisher(PointCloud2, "/converted_scan", 10)
         self.sub = self.create_subscription(LaserScan, "/scan", self.scan_cb, 10)
@@ -242,13 +244,13 @@ class LaserSubscriber(Node):
         self.timer = self.create_timer(5, self.timer_callback)
         self.cloud_out = PointCloud2()
 
-    def timer_callback(self):
+    async def timer_callback(self):
         """Publish accumulated point cloud"""
-        self.pub.publish(self.cloud_out)
-        self.cloud_out = PointCloud2()
-        self.cloud_out.header.frame_id = self.target_frame
+        async with self.lock:
+            self.pub.publish(self.cloud_out)
+            self.cloud_out = PointCloud2()
 
-    def scan_cb(self, msg):
+    async def scan_cb(self, msg):
         """
         Fields are Default [x,y,z,intensity,index] all 4 bytes for 20 bytes a point
         """
@@ -258,7 +260,7 @@ class LaserSubscriber(Node):
             cloud_row = self.lp.projectLaser(msg)
 
             # Get the latest transform to rotate the laserscan into and add to the accumulating point cloud
-            trans = self._tf_buffer.lookup_transform("laser_frame","base_link", rclpy.time.Time(seconds=0,nanoseconds=0))
+            trans = await self._tf_buffer.lookup_transform_async("laser_frame","base_link", rclpy.time.Time(seconds=0,nanoseconds=0))
 
             rot = R.from_quat([trans.transform.rotation.x,trans.transform.rotation.y,trans.transform.rotation.z,trans.transform.rotation.w])
             
@@ -266,7 +268,7 @@ class LaserSubscriber(Node):
             # trans.transform.translation
 
             # xyz_arr has 5 fields for [x,y,z,intesity,index]
-            xyz_arr = np.empty((cloud_row.width,3))
+            xyz_arr = np.empty((cloud_row.width,3), dtype=np.float32)
             bits = cloud_row.data.tobytes()
             xyz_arr[:,0] = np.frombuffer(bits, np.float32)[0::5]
             xyz_arr[:,1] = np.frombuffer(bits, np.float32)[1::5]
@@ -274,28 +276,57 @@ class LaserSubscriber(Node):
             
             rotated = rot.apply(xyz_arr)
 
-            out_arr = np.empty((cloud_row.width, 5))
-            out_arr[:,0] = np.frombuffer(rotated, np.float32)[0,:]
-            out_arr[:,1] = np.frombuffer(rotated, np.float32)[1,:]
-            out_arr[:,2] = np.frombuffer(rotated, np.float32)[2,:]
-            out_arr[:,3] = np.frombuffer(bits, np.float32)[3::5]
-            out_arr[:,4] = np.frombuffer(bits, np.int32)[4::5]
+            out_arr = np.zeros((cloud_row.width,), dtype=np.dtype(
+                    [
+                        ("x",np.float32),
+                        ("y",np.float32),
+                        ("z",np.float32),
+                        ("intensity",np.float32),
+                        ("index",np.int32),
+                    ]
+                )
+            )
+            out_arr['x'][:] = rotated.astype(np.float32)[:,0]
+            out_arr['y'][:] = rotated.astype(np.float32)[:,1]
+            out_arr['z'][:] = rotated.astype(np.float32)[:,2]
+            out_arr['intensity'][:] = np.frombuffer(bits, np.float32)[3::5]
+            out_arr['index'][:] = np.frombuffer(bits, np.int32)[4::5]
 
             rotated_cloud = array.array('B', out_arr.tobytes())
 
-            self.cloud_out.height += 1
-            self.cloud_out.data.append(rotated_cloud)
+            
+            
+            async with self.lock:
+                if self.cloud_out.width == 0:
+                    self.cloud_out = cloud_row
+                    self.cloud_out.header.frame_id = self.target_frame                
+                else:
+                    self.cloud_out.height += 1
+                    
+                self.cloud_out.width = max(cloud_row.width,self.cloud_out.width)
+                self.cloud_out.data.extend(rotated_cloud)
+
+                if len(self.cloud_out.data) < self.cloud_out.height*self.cloud_out.width*self.cloud_out.point_step:
+                    diff = abs( len(self.cloud_out.data) - self.cloud_out.height*self.cloud_out.width*self.cloud_out.point_step)
+                    self.cloud_out.data.extend([0]*diff)
             
         except Exception as ex:
-            self.logger.error(ex)
+            self._logger.error(ex)
 
 def main(args=None):
-    
-    rclpy.init(args=args)
-    node = LaserSubscriber()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+
+    loop = asyncio.get_event_loop()
+
+    async def mainloop():
+        rclpy.init(args=args)
+        node = LaserSubscriber()
+        while rclpy.ok():
+            rclpy.spin_once(node)
+            await asyncio.sleep(0)
+        node.destroy_node()
+        rclpy.shutdown()
+    loop.create_task(mainloop())
+    loop.run_forever()
         
 if __name__=="__main__":
     main()
