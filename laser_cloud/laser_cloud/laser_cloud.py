@@ -231,6 +231,13 @@ class LaserProjection:
 
 
 class LaserSubscriber(Node):
+    """
+    TODO: 
+        - publish point cloud every scan. Adding the new scan to our point cloud,
+        - parameterize time in which to delete old scans.
+        - Send to SLAM/LOAM mapping node someday
+        - Profile the callbacks and optimize with more numpy/c-extensions/pyO3 rust extensions
+    """
 
     def __init__(self):
         super().__init__("LaserSub")
@@ -302,7 +309,7 @@ class LaserSubscriber(Node):
                     self.cloud_out.header.frame_id = self.target_frame                
                 else:
                     self.cloud_out.height += 1
-                    
+
                 self.cloud_out.width = max(cloud_row.width,self.cloud_out.width)
                 self.cloud_out.data.extend(rotated_cloud)
 
