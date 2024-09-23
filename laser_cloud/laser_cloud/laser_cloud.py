@@ -8,6 +8,7 @@ from tf2_ros.transform_listener import TransformListener
 from tf2_ros.buffer import Buffer
 import numpy as np
 from scipy.spatial.transform import Rotation as R
+from scipy.spatial.transform import Slerp
 import array
 
 class LaserProjection:
@@ -268,8 +269,11 @@ class LaserSubscriber(Node):
 
             # Get the latest transform to rotate the laserscan into and add to the accumulating point cloud
             trans = await self._tf_buffer.lookup_transform_async("laser_frame","base_link", rclpy.time.Time(seconds=0,nanoseconds=0))
-
+            
             rot = R.from_quat([trans.transform.rotation.x,trans.transform.rotation.y,trans.transform.rotation.z,trans.transform.rotation.w])
+            
+            # slerp from the last rotation to this one
+            # slerp = Slerp([x*time_increment for x in range(cloud_row.width)])
             
             # Translation for moving robots
             # trans.transform.translation

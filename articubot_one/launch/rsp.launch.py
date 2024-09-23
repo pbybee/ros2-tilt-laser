@@ -44,6 +44,11 @@ def generate_launch_description():
             output='screen',
         ),
         Node(
+            package='laser_frame_pub',
+            executable='laser_frame_pub',
+            output='screen',
+        ),
+        Node(
             package='rplidar_ros',
             executable='rplidar_composition',
             output='screen',
