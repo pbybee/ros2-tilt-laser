@@ -44,8 +44,8 @@ def generate_launch_description():
             output='screen',
         ),
         Node(
-            package='laser_frame_pub',
-            executable='laser_frame_pub',
+            package='laser_joint_pub',
+            executable='laser_joint_pub',
             output='screen',
         ),
         Node(

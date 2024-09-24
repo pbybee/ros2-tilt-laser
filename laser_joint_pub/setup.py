@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'laser_frame_pub'
+package_name = 'laser_joint_pub'
 
 setup(
     name=package_name,
@@ -20,7 +20,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'laser_frame_pub = laser_frame_pub.laser_frame_pub:main' 
+            'laser_joint_pub = laser_joint_pub.laser_joint_pub:main' 
         ],
     },
 )

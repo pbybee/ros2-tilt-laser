@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>laser_frame_pub</name>
+  <name>laser_joint_pub</name>
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="phelanbybee@gmail.com">ptb</maintainer>

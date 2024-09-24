@@ -30,24 +30,20 @@ def quaternion_from_euler(ai, aj, ak):
 
     return q
 
-class LaserFramePub(Node):
+class LaserJointPub(Node):
     """
-    This handles rotation, I don't think we need to also publish the translation from
-    the chassis frame. I thin these transorms are atomic operations, get a message, apply the
-    transorm, there may be a separate translation message
+    The robot_state_publisher subscribes to joint states and published TF2 transforms. 
+    We only need to publish the laser_joint state
     """
     def __init__(self):
         
-        super().__init__("LaserFramePub")
-        self.pub = self.create_publisher(JointState, "/laser_frame", 10)
+        super().__init__("LaserJointPub")
+        self.pub = self.create_publisher(JointState, "/joint_states", 10)
         self.broadcaster = TransformBroadcaster(self, qos=10)
         self.sock = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
         self.sock.setblocking(False)
         self.sock.bind(("192.168.0.100",19999))
 
-        self.lidar_trans = TransformStamped()
-        self.lidar_trans.header.frame_id = 'base_link'
-        self.lidar_trans.child_frame_id = 'laser_frame'
         self.joint_state = JointState()
 
         self.create_timer(0.1, self.listen)
@@ -66,23 +62,24 @@ class LaserFramePub(Node):
         # Data is radians
         now = self.get_clock().now().to_msg()
         self.joint_state.header.stamp = now
-        self.joint_state.position = data
+        self.joint_state.name = ["laser_joint"]
+        self.joint_state.position = [rads]
         self.pub.publish(self.joint_state)
 
-        self.lidar_trans.header.stamp = now
+        # self.lidar_trans.header.stamp = now
         # lidar_trans.transform.translation
-        Q = quaternion_from_euler(0,rads,0)
-        self.lidar_trans.transform.rotation.x = Q[0]
-        self.lidar_trans.transform.rotation.y = Q[1]
-        self.lidar_trans.transform.rotation.z = Q[2]
-        self.lidar_trans.transform.rotation.w = Q[3]
-        self.broadcaster.sendTransform(self.lidar_trans)
+        # Q = quaternion_from_euler(0,rads,0)
+        # self.lidar_trans.transform.rotation.x = Q[0]
+        # self.lidar_trans.transform.rotation.y = Q[1]
+        # self.lidar_trans.transform.rotation.z = Q[2]
+        # self.lidar_trans.transform.rotation.w = Q[3]
+        # self.broadcaster.sendTransform(self.lidar_trans)
         
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = LaserFramePub()
+    node = LaserJointPub()
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
