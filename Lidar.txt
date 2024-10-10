@@ -19,3 +19,9 @@ ros2 run laser_cloud laser_cloud
 
 
 # Follow tutorial on custom ros package and make laser_cloud work
+
+
+# ON this PC
+sudo socat pty,link=/dev/virtualcom0,raw,group-late=dialout,mode=660 tcp:robopi.local:8080
+ # ON RASPI
+ sudo socat tcp-listen:8080 pty,link=/dev/ttyUSB0

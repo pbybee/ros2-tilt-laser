@@ -38,22 +38,22 @@ def generate_launch_description():
             description='Use sim time if true'),
 
         node_robot_state_publisher,
-        Node(
-            package='laser_cloud',
-            executable='laser_cloud',
-            output='screen',
-        ),
-        Node(
-            package='laser_joint_pub',
-            executable='laser_joint_pub',
-            output='screen',
-        ),
+        # Node(
+        #     package='laser_cloud',
+        #     executable='laser_cloud',
+        #     output='screen',
+        # ),
+        # Node(
+        #     package='laser_joint_pub',
+        #     executable='laser_joint_pub',
+        #     output='screen',
+        # ),
         Node(
             package='rplidar_ros',
             executable='rplidar_composition',
             output='screen',
             parameters=[{
-                'serial_port': '/dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0',
+                'serial_port': '/dev/pts/4',
                 'frame_id': 'laser_frame',
                 'angle_compensate': True,
                 'scan_mode': 'Standard'
