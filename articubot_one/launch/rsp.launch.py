@@ -38,22 +38,22 @@ def generate_launch_description():
             description='Use sim time if true'),
 
         node_robot_state_publisher,
-        # Node(
-        #     package='laser_cloud',
-        #     executable='laser_cloud',
-        #     output='screen',
-        # ),
-        # Node(
-        #     package='laser_joint_pub',
-        #     executable='laser_joint_pub',
-        #     output='screen',
-        # ),
+        Node(
+            package='laser_cloud',
+            executable='laser_cloud',
+            output='screen',
+        ),
+        Node(
+            package='laser_joint_pub',
+            executable='laser_joint_pub',
+            output='screen',
+        ),
         Node(
             package='rplidar_ros',
             executable='rplidar_composition',
             output='screen',
             parameters=[{
-                'serial_port': '/dev/pts/4',
+                'serial_port': '/dev/ttyUSB0',
                 'frame_id': 'laser_frame',
                 'angle_compensate': True,
                 'scan_mode': 'Standard'

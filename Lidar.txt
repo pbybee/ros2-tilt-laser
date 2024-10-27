@@ -6,6 +6,8 @@ ros2 launch articubot_one rsp.launch.py
 # Run this when "No TF to Base_link" in Rviz
 ros2 run joint_state_publisher_gui joint_state_publisher_gui
 
+Don't run the joint_state_publisher when actual data is coming in.
+
 # Start Lidar Topic
 ros2 run rplidar_ros rplidar_composition --ros-args -p serial_port:=/dev/ttyUSB0 -p frame_id:=laser_frame -p angle_compensate:=true -p scan_mode:=Standard
 
@@ -15,13 +17,12 @@ ros2 run laser_cloud laser_cloud
 ##ros2 launch articubot_one/launch/launch_sim.launch.py world:=./articubot_one/worlds/obstacles.world 
 
 
-##ros2 launch articubot_one tf_publisher.launch.py
+# To relay serial device over network use usbip
+# server
+sudo modprobe usbip_host
+sudo usbipd &
+sudo usbip list -l
+sudo usbip bind -b 1-1.1
 
-
-# Follow tutorial on custom ros package and make laser_cloud work
-
-
-# ON this PC
-sudo socat pty,link=/dev/virtualcom0,raw,group-late=dialout,mode=660 tcp:robopi.local:8080
- # ON RASPI
- sudo socat tcp-listen:8080 pty,link=/dev/ttyUSB0
+# Client/ROS PC
+sudo usbip attach -r robopi.local -b 1-1.1
