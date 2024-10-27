@@ -64,7 +64,8 @@
     <joint name="laser_joint" type="revolute">
         <parent link="chassis"/>
         <child link="laser_frame"/>
-        <origin xyz="0.1 0 0.175" rpy="0 0 -${1.5*pi}"/>
+        <!-- <origin xyz="0.1 0 0.175" rpy="0 0 -${1.5*pi}"/> -->
+        <origin xyz="0.1 0 0.175" rpy="0 0 0"/>
         <axis rpy="0 0 0" xyz="1 0 0" />
         <limit effort="0.1" lower="-0.6" upper="0.6" velocity="0.2"/>
     </joint>

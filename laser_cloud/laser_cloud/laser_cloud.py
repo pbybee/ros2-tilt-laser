@@ -10,6 +10,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 from scipy.spatial.transform import Slerp
 import array
+import time
 
 class LaserProjection:
     """
@@ -249,14 +250,17 @@ class LaserSubscriber(Node):
         self.sub = self.create_subscription(LaserScan, "/scan", self.scan_cb, 10)
         self._tf_buffer = Buffer()
         self._tf_listener = TransformListener(self._tf_buffer, self)
-        self.timer = self.create_timer(5, self.timer_callback)
+        self.timer = self.create_timer(0.25, self.timer_callback)
+        self.clear_time = time.time()
         self.cloud_out = PointCloud2()
 
     async def timer_callback(self):
         """Publish accumulated point cloud"""
         async with self.lock:
             self.pub.publish(self.cloud_out)
-            self.cloud_out = PointCloud2()
+            if time.time() - self.clear_time > 14:
+                self.cloud_out = PointCloud2()
+                self.clear_time = time.time()
 
     async def scan_cb(self, msg):
         """
@@ -308,11 +312,10 @@ class LaserSubscriber(Node):
             
             
             async with self.lock:
-                if self.cloud_out.width == 0:
+                if self.cloud_out.height == 0:
                     self.cloud_out = cloud_row
                     self.cloud_out.header.frame_id = self.target_frame                
-                else:
-                    self.cloud_out.height += 1
+                self.cloud_out.height += 1
 
                 self.cloud_out.width = max(cloud_row.width,self.cloud_out.width)
                 self.cloud_out.data.extend(rotated_cloud)
