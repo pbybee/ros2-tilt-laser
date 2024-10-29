@@ -6,6 +6,6 @@ The pitch data is transimted to the laser_joint_publisher via UDP which publishe
 
 The lidar serial connection is bridged over network via usbip (https://usbip.sourceforge.net/) and data transfered over network, but as if it were the serial connection locally to ROS.
 
-Shout out to Articulated Robotics for the tutorial and template
+Shout out to Articulated Robotics for the template
 
 ![Cloud Scan](https://github.com/pbybee/ros2-tilt-laser/blob/master/images/20241027_103124.jpg?raw=true)
